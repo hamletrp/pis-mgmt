@@ -1,0 +1,26 @@
+{
+  "name": "typescript-slsguru",
+  "version": "1.0.0",
+  "scripts": {
+    "lint": "tslint '*.ts'",
+    "build": "tsc --lib es6",
+    "deploy": "sls deploy"
+  },
+  "keywords": [],
+  "author": "Hamlet Rodriguez",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.148",
+    "@types/node": "^7.0.5",
+    "serverless": "^3.38.0",
+    "serverless-esbuild": "^1.38.0",
+    "ts-node": "^10.9.2",
+    "tslint": "^5.5.0",
+    "tslint-config-standard": "^6.0.1",
+    "typescript": "^5.8.2",
+    "uuid": "^11.1.0"
+  },
+  "dependencies": {
+    "uuid": "^11.1.0"
+  }
+}

@@ -1,0 +1,53 @@
+{
+    "definitions": {},
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "The pis-config create request body Schema",
+    "required": [
+        "device_type",
+        "device_wait",
+        "distance_range_meters",
+        "door_name",
+        "door_no",
+        "endpoint_protocol",
+        "geolocation_coordinates",
+        "mqtt_topic_format",
+        "mqtt_topic",
+        "mqtt_endpoint"
+    ],
+    "properties": {
+        "device_type": {
+            "type": "string"
+        },
+        "device_wait": {
+            "type": "string"
+        },
+        "distance_range_meters": {
+            "type": "number"
+        },
+        "door_name": {
+            "type": "string"
+        },
+        "door_no": {
+            "type": "string"
+        },
+        "endpoint_protocol": {
+            "type": "string"
+        },
+        "is_sharedwifi": {
+            "type": "boolean"
+        },
+        "mqtt_endpoint": {
+            "type": "string"
+        },
+        "mqtt_topic": {
+            "type": "string"
+        },
+        "geolocation_coordinates": {
+            "type": "object"
+        },
+        "mqtt_topic_format": {
+            "type": "string"
+        }
+    }
+}

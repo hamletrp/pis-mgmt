@@ -1,0 +1,116 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: itsnotrocketsciencellc
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: pis-admin
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: pis-adm
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    external: ['aws-sdk']
+    exclude: ['aws-sdk']
+    packager: npm
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: dev
+  environment:
+    DYNAMODB_TABLE_NAME: ${self:service}-${self:custom.stage}-pis-config
+
+functions:
+  create:
+    handler: src/handlers/create.create
+    role: CreateFnRole
+    package:
+      individually: true
+      include:
+        - src/handlers/create.ts
+        - src/models/models.ts
+    # request:
+    #   schemas:
+    #     application/json: 
+    #       schema: ${file(models/pis-config_post_req_schema.json)}
+    events:
+      - http:
+          path: ps-adm
+          method: post
+          cors: true
+
+  list:
+    # handler: dist/handlers/list.list
+    handler: src/handlers/list.list
+    role: ListFnRole
+    # package:
+    #   individually: true
+    #   include:
+    #     - src/handlers/list.ts
+    #     - src/models/models.ts
+    events:
+      - http:
+          path: ps-adm
+          method: get
+          cors: true
+
+  get:
+    handler: src/handlers/get.get
+    role: GetFnRole
+    # package:
+    #   individually: true
+    #   include:
+    #     - src/handlers/get.ts
+    #     - src/models/models.ts
+    events:
+      - http:
+          path: ps-adm/{pk}/{sk}
+          method: get
+          cors: true
+
+  update:
+    handler: src/handlers/update.update
+    role: UpdateFnRole
+    package:
+      individually: true
+      include:
+        - src/handlers/update.ts
+        - src/models/models.ts
+    # request:
+    #   schemas:
+    #     application/json: 
+    #       schema: ${file(models/pis-config_update_req_schema.json)}
+    events:
+      - http:
+          path: ps-adm/{pk}/{sk}
+          method: put
+          cors: true
+
+  delete:
+    handler: src/handlers/delete._delete
+    role: DeleteFnRole
+    package:
+      individually: true
+      include:
+        - src/handlers/update.ts
+        - src/models/models.ts
+    events:
+      - http:
+          path: ps-adm/{pk}/{sk}
+          method: delete
+          cors: true
+
+resources:
+    - ${file(resources/dynamodb.yml)}
+    - ${file(resources/iam.yml)}
