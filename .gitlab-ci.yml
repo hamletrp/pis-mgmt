@@ -1,0 +1,96 @@
+# Reference: https://docs.gitlab.com/ee/ci/yaml/README.html
+stages: 
+  - test
+  - approve
+  - deploy
+  - integ_test
+
+
+################################################################################
+# STAGING                                                                      #
+################################################################################
+
+deploy_stage: 
+  stage: deploy  
+  image: node:latest
+  # only:
+  #   - stage 
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'stage' && $AUTO_DEPLOY_TO_STAGE == "true"
+  before_script:
+    - npm config set prefix /usr/local
+    - npm i -g serverless@3.40.0
+    - npm i
+  script:     
+    - sls deploy --stage staging --verbose
+  environment: stage
+
+test_stage:
+  stage: test  
+  image: node:latest
+  only:
+    - stage 
+  before_script:
+    - npm i
+  script:     
+    # TODO: - npm lint
+    - npm test
+  environment: stage
+
+integ_test_stage:
+  stage: integ_test  
+  image: node:latest
+  only:
+    - stage 
+  before_script:
+    - npm i
+    # - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    # - python get-pip.py
+    # - apt-get install python3-pip
+    # - apt install python3-pip
+    # - pip install awscli
+    # - apt-get install jq
+  script:     
+    # TODO: - npm lint
+    # - X_API_KEY=$(aws apigateway get-api-key --api-key $smartvalet_apikeys_staging_apikey --include-value | jq -r '.value')
+    # - echo "X_API_KEY"=$prj_apikeys_staging_apikey >> ".env"
+    - npm integ-test
+  environment: stage
+
+################################################################################
+# PRODUCTION                                                                   #
+################################################################################
+
+test_prod:
+  stage: test  
+  image: node:latest
+  only:
+    - master 
+  before_script:
+    - npm i
+  script:     
+    - npm test
+  environment: prod
+
+approve:
+  stage: approve
+  only:
+    - master
+  script:
+    - echo 'Deployment has been approved!'
+  environment: prod
+  when: manual
+  allow_failure: false 
+
+deploy_prod: 
+  stage: deploy  
+  image: node:latest
+  only:
+    - master 
+  before_script:
+    - npm config set prefix /usr/local
+    - npm i -g serverless@3.40.0
+    - npm i
+  script:     
+    - sls deploy --stage prod --verbose
+  environment: prod
