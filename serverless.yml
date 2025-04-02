@@ -44,7 +44,7 @@ functions:
     request:
       schemas:
         application/json: 
-          schema: ${file(models/pis-config_post_req_schema.json)}
+          schema: ${file(src/models/pis-config_post_req_schema.json)}
     events:
       - http:
           path: ps-adm
@@ -90,7 +90,7 @@ functions:
     request:
       schemas:
         application/json: 
-          schema: ${file(models/pis-config_update_req_schema.json)}
+          schema: ${file(src/models/pis-config_update_req_schema.json)}
     events:
       - http:
           path: ps-adm/{pk}/{sk}
