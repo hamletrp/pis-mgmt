@@ -36,15 +36,15 @@ functions:
   create:
     handler: src/handlers/create.create
     role: CreateFnRole
-    package:
-      individually: true
-      include:
-        - src/handlers/create.ts
-        - src/models/models.ts
-    # request:
-    #   schemas:
-    #     application/json: 
-    #       schema: ${file(models/pis-config_post_req_schema.json)}
+    # package:
+    #   individually: true
+    #   include:
+    #     - src/handlers/create.ts
+    #     - src/models/models.ts
+    request:
+      schemas:
+        application/json: 
+          schema: ${file(models/pis-config_post_req_schema.json)}
     events:
       - http:
           path: ps-adm
@@ -52,7 +52,6 @@ functions:
           cors: true
 
   list:
-    # handler: dist/handlers/list.list
     handler: src/handlers/list.list
     role: ListFnRole
     # package:
@@ -83,15 +82,15 @@ functions:
   update:
     handler: src/handlers/update.update
     role: UpdateFnRole
-    package:
-      individually: true
-      include:
-        - src/handlers/update.ts
-        - src/models/models.ts
-    # request:
-    #   schemas:
-    #     application/json: 
-    #       schema: ${file(models/pis-config_update_req_schema.json)}
+    # package:
+    #   individually: true
+    #   include:
+    #     - src/handlers/update.ts
+    #     - src/models/models.ts
+    request:
+      schemas:
+        application/json: 
+          schema: ${file(models/pis-config_update_req_schema.json)}
     events:
       - http:
           path: ps-adm/{pk}/{sk}
@@ -101,11 +100,11 @@ functions:
   delete:
     handler: src/handlers/delete._delete
     role: DeleteFnRole
-    package:
-      individually: true
-      include:
-        - src/handlers/update.ts
-        - src/models/models.ts
+    # package:
+    #   individually: true
+    #   include:
+    #     - src/handlers/update.ts
+    #     - src/models/models.ts
     events:
       - http:
           path: ps-adm/{pk}/{sk}
