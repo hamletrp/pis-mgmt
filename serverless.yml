@@ -1,7 +1,8 @@
 # "org" ensures this Service is used with the correct Serverless Framework Access Key.
-org: itsnotrocketsciencellc
+# org: itsnotrocketsciencellc
+
 # "app" enables Serverless Framework Dashboard features and sharing them with other Services.
-app: pis-admin
+# app: pis-admin
 # "service" is the name of this project. This will also be added to your AWS resource names.
 service: pis-adm
 
