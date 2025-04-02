@@ -2,6 +2,8 @@
   "name": "typescript-slsguru",
   "version": "1.0.0",
   "scripts": {
+    "test": "jest",
+    "test-watch": "jest --watch",
     "lint": "tslint '*.ts'",
     "build": "tsc --lib es6",
     "deploy": "sls deploy"
@@ -18,7 +20,10 @@
     "tslint": "^5.5.0",
     "tslint-config-standard": "^6.0.1",
     "typescript": "^5.8.2",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.1"
   },
   "dependencies": {
     "uuid": "^11.1.0"

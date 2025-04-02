@@ -6,7 +6,12 @@
     "strict": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node",
+      "jest"
+    ]
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
