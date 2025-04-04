@@ -4,9 +4,15 @@
 > ℹ️ **About this API**  
 > This RESTful API is designed to manage a registry of **Raspberry Pi devices**.  
 > It supports full **CRUD operations** (Create, Read, Update, Delete) for managing Pi configurations, device metadata, and status — ideal for IoT management systems that relies on raspberry pis.
+> This API Design also proposes to broadcast every data change, so that any downstream system gets a copy of the current state of the configuration.
 
 
 This project is a serverless RESTful API built with **Node.js** and **TypeScript**, deployed on **AWS Lambda**, exposed via **API Gateway**, and using **DynamoDB** for storage. It’s developed using the **Serverless Framework** for simplified deployment and infrastructure management.
+
+---
+
+## Architecture Diagram
+![Architecture Diagram](arch-diagram.png)
 
 ---
 
