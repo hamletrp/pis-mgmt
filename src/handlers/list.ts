@@ -1,9 +1,9 @@
-const { DynamoDB } = require('aws-sdk');
-
 import {
   APIGatewayProxyEvent,
   Callback, Context
 } from "aws-lambda";
+
+const { DynamoDB } = require('aws-sdk');
 
 const dynamoDb = new DynamoDB.DocumentClient();
 
