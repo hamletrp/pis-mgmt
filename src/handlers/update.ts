@@ -49,12 +49,15 @@ export const update = async (
       .promise()
       .then((val) => val.Attributes);
 
+    console.log('INFO: successfully stored pis-config data');
+
     return {
       statusCode: 200,
       body: JSON.stringify(resultAttributes)
     }
 
   } catch (error: any) {
+    console.log('ERROR', error);
     return callback(error);
   }
 

@@ -29,6 +29,7 @@ export const list = async (
     }
 
   } catch (error: any) {
+    console.log('ERROR', error);
     return callback(error);
   }
 

@@ -29,6 +29,7 @@ export const _delete = async (
       body: {}
     }
   } catch (error: any) {
+    console.log('ERROR', error);
     return callback(error);
   }
 }

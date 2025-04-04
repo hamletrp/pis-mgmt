@@ -32,11 +32,14 @@ export const create = async (
 
     await dynamoDb.put(params).promise();
 
+    console.log('INFO: successfully stored pis-config data');
+
     return {
       statusCode: 200,
       body: JSON.stringify(params.Item)
     }
   } catch (error: any) {
+    console.log('ERROR', error);
     return callback(error);
   }
 
