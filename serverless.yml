@@ -30,10 +30,26 @@ provider:
   environment:
     DYNAMODB_TABLE_NAME: ${self:service}-${self:custom.stage}-pis-config
 
+
+package:
+  individually: true
+  exclude:
+    - tests/** 
+    - src/handlers/**
+    - src/models/**
+    - node_modules/**
+    - resources/**
+
+
 functions:
   create:
     handler: src/handlers/create.create
     role: CreateFnRole
+    package:
+       individually: true
+       include:
+         - src/handlers/create.ts
+         - src/models/models.ts
     events:
       - http:
           path: ps-adm
@@ -43,6 +59,11 @@ functions:
   list:
     handler: src/handlers/list.list
     role: ListFnRole
+    package:
+       individually: true
+       include:
+         - src/handlers/list.ts
+         - src/models/models.ts
     events:
       - http:
           path: ps-adm
@@ -52,6 +73,11 @@ functions:
   get:
     handler: src/handlers/get.get
     role: GetFnRole
+    package:
+      individually: true
+      include:
+        - src/handlers/get.ts
+        - src/models/models.ts
     events:
       - http:
           path: ps-adm/{pk}/{sk}
@@ -61,6 +87,11 @@ functions:
   update:
     handler: src/handlers/update.update
     role: UpdateFnRole
+    package:
+      individually: true
+      include:
+        - src/handlers/update.ts
+        - src/models/models.ts
     events:
       - http:
           path: ps-adm/{pk}/{sk}
@@ -70,6 +101,10 @@ functions:
   delete:
     handler: src/handlers/delete._delete
     role: DeleteFnRole
+    package:
+      individually: true
+      include:
+        - src/handlers/delete.ts
     events:
       - http:
           path: ps-adm/{pk}/{sk}
