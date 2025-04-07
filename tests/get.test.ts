@@ -1,82 +1,82 @@
-import { create } from '../src/handlers/get';
-import { APIGatewayProxyEvent, Context, Callback } from 'aws-lambda';
-import { DynamoDB } from 'aws-sdk';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
 
-jest.mock('aws-sdk', () => {
-    const mDocumentClient = {
-        get: jest.fn().mockReturnThis(),
-        promise: jest.fn(),
-    };
-    return {
-        DynamoDB: {
-            DocumentClient: jest.fn(() => mDocumentClient),
-        },
-    };
+// Create a mock for the `send` method
+const mockSend = jest.fn();
+
+// Mock the DynamoDBDocumentClient.from function and GetCommand
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
+  return {
+    ...actual,
+    DynamoDBDocumentClient: {
+      from: jest.fn(() => ({
+        send: mockSend,
+      })),
+    },
+    GetCommand: jest.fn(), // optional: to verify command args
+  };
 });
 
-describe('get handler (create function)', () => {
-    const OLD_ENV = process.env;
-    const mDocumentClient = new DynamoDB.DocumentClient() as any;
+import { get } from '../src/handlers/get';
 
-    beforeEach(() => {
-        jest.resetModules();
-        process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'MockTable' };
+describe('get lambda handler (non-injected client)', () => {
+  const pk = 'test-pk';
+  const sk = 'config';
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'test-table' };
+  });
+
+  afterAll(() => {
+    process.env = OLD_ENV;
+  });
+
+  it('should return 200 and item if found', async () => {
+    const mockItem = { pk, sk, name: 'Test Item' };
+    mockSend.mockResolvedValueOnce({ Item: mockItem });
+
+    const result = await get(
+      { pathParameters: { pk, sk } } as any,
+      {} as any,
+      jest.fn()
+    );
+
+    expect(result.statusCode).toBe(200);
+    expect(JSON.parse(result.body)).toEqual(mockItem);
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(GetCommand).toHaveBeenCalledWith({
+      TableName: 'test-table',
+      Key: { pk, sk },
     });
+  });
 
-    afterAll(() => {
-        process.env = OLD_ENV;
-    });
+  it('should return 404 if item not found', async () => {
+    mockSend.mockResolvedValueOnce({ Item: undefined });
 
-    it('should return item from DynamoDB', async () => {
-        const itemPk = '1';
-        const itemSk = 'config';
-        const mockItem = {
-            Item: { pk: itemPk, sk: itemSk, device_type: 'raspberryPi' },
+    const result = await get(
+      { pathParameters: { pk, sk } } as any,
+      {} as any,
+      jest.fn()
+    );
 
-        };
+    expect(result.statusCode).toBe(404);
+    expect(JSON.parse(result.body)).toEqual({ message: 'Item not found' });
+  });
 
-        mDocumentClient.promise.mockResolvedValueOnce(mockItem);
+  it('should return 500 if DynamoDB throws', async () => {
+    mockSend.mockRejectedValueOnce(new Error('DynamoDB is down'));
 
-        const event = {
-            pathParameters: {
-                pk: itemPk,
-                sk: itemSk,
-            },
-        } as unknown as APIGatewayProxyEvent;
+    const result = await get(
+      { pathParameters: { pk, sk } } as any,
+      {} as any,
+      jest.fn()
+    );
 
-        const context = {} as Context;
-        const callback = jest.fn();
-
-        const result = await create(event, context, callback);
-
-        expect(mDocumentClient.get).toHaveBeenCalledWith({
-            TableName: 'MockTable',
-            Key: {
-                pk: itemPk,
-                sk: itemSk,
-            },
-        });
-
-        expect(result.statusCode).toBe(200);
-        expect(result.body).toEqual(JSON.stringify(mockItem));
-    });
-
-    it('should handle DynamoDB get error and call callback', async () => {
-        const error = new Error('DynamoDB get failed');
-        mDocumentClient.promise.mockRejectedValueOnce(error);
-
-        const event = {
-            pathParameters: {
-                pk: 'error-pk',
-                sk: 'error-sk',
-            },
-        } as unknown as APIGatewayProxyEvent;
-
-        const context = {} as Context;
-        const callback = jest.fn();
-
-        await create(event, context, callback);
-
-        expect(callback).toHaveBeenCalledWith(error);
-    });
+    expect(result.statusCode).toBe(500);
+    const body = JSON.parse(result.body);
+    expect(body.message).toBe('Failed to fetch item from DynamoDB');
+    expect(body.error).toBe('DynamoDB is down');
+  });
 });

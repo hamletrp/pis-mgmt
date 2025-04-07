@@ -1,94 +1,86 @@
 import { create } from '../src/handlers/create';
-import { APIGatewayProxyEvent, Context, Callback } from 'aws-lambda';
-import { DynamoDB } from 'aws-sdk';
-import { PISConfig } from '../src/models/models';
+import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
-jest.mock('uuid');
-jest.mock('aws-sdk', () => {
-    const mDocumentClient = {
-        put: jest.fn().mockReturnThis(),
-        promise: jest.fn(),
-    };
-    return {
-        DynamoDB: {
-            DocumentClient: jest.fn(() => mDocumentClient),
-        },
-    };
+// Mocks
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  return {
+    PutCommand: jest.fn(),
+    DynamoDBDocumentClient: {
+      from: jest.fn().mockReturnValue({
+        send: jest.fn()
+      }),
+    },
+  };
 });
 
-describe('create lambda', () => {
-    const OLD_ENV = process.env;
-    const mockUuid = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
-    const mDocumentClient = new DynamoDB.DocumentClient() as any;
+jest.mock('uuid', () => ({
+  v1: jest.fn().mockReturnValue('mock-uuid'),
+}));
 
-    beforeEach(() => {
-        jest.resetModules();
-        process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'MockTable' };
+describe('create lambda handler', () => {
+  const mockSend = jest.fn();
+  const OLD_ENV = process.env;
+  const mockUuid = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
-        jest.mock('uuid', () => ({
-            v1: jest.fn(() => mockUuid),
-        }));
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'MockTable' };
 
-        jest.spyOn(Date.prototype, 'getTime').mockReturnValue(1743533608279);
+    jest.mock('uuid', () => ({
+        v1: jest.fn(() => mockUuid),
+    }));
+
+    // Overwrite send function with mock
+    (DynamoDBDocumentClient.from as jest.Mock).mockReturnValue({
+      send: mockSend,
     });
 
-    afterAll(() => {
-        process.env = OLD_ENV;
-    });
+    jest.spyOn(Date.prototype, 'getTime').mockReturnValue(1743533608279);
 
-    it('should store item in DynamoDB and return 200', async () => {
+  });
 
-        const item = {
-            pk: mockUuid,
-            sk: 'config',
-            device_type: "raspberryPi",
-            device_wait: 5000,
-            distance_range_meters: 50,
-            door_name: "North Entrance",
-            door_no: 1,
-            endpoint_protocol: "mqtt",
-            geolocation_coordinates: {
-                latitude: 18.4807173,
-                longitude: -69.929942
-            },
-            is_sharedwifi: true,
-            mqtt_endpoint: "XXXXXXXX-ats.iot.us-east-1.amazonaws.com",
-            mqtt_topic: "us/us-east-1/hamletrp@gmail.com/co.PErYw6OJjN/buildingedgardoor1",
-            mqtt_topic_format: "country/region/account/location/device_id",
-            createdAt: '1743533608279',
-            updatedAt: '1743533608279'
-        } as PISConfig;
+  afterAll(() => {
+    process.env = OLD_ENV;
+  });
 
-        const event = {
-            body: JSON.stringify(item),
-        } as APIGatewayProxyEvent;
+  it('should return 400 if body is invalid JSON', async () => {
+    const result = await create(
+      { body: 'invalid-json' } as any,
+      {} as any,
+      jest.fn()
+    );
 
-        const callback = jest.fn();
-        const context = {} as Context;
+    expect(result.statusCode).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: 'Invalid JSON in request body' });
+  });
 
-        mDocumentClient.promise.mockResolvedValueOnce({});
+  it('should store data in DynamoDB and return 200', async () => {
+    mockSend.mockResolvedValue({});
 
-        const result = await create(event, context, callback);
+    const eventBody = {
+      door_name: 'Main Entrance',
+      device_type: 'raspberrypi'
+    };
 
-        expect(mDocumentClient.put).toHaveBeenCalledWith({
-            TableName: 'MockTable',
-            Item: expect.objectContaining(item),
-        });
+    const result = await create(
+      {
+        body: JSON.stringify(eventBody)
+      } as any,
+      {} as any,
+      jest.fn()
+    );
 
-        expect(result.statusCode).toBe(200);
-        expect(JSON.parse(result.body)).toMatchObject(item);
-    });
+    expect(PutCommand).toHaveBeenCalled();
 
-    it('should handle errors and invoke callback with error', async () => {
-        const event = {
-            body: 'invalid-json',
-        } as APIGatewayProxyEvent;
+    expect(result.statusCode).toBe(200);
+    const parsedBody = JSON.parse(result.body);
+    expect(parsedBody.pk).toBe('mock-uuid');
+    expect(parsedBody.door_name).toBe('Main Entrance');
+    expect(parsedBody.device_type).toBe('raspberrypi');
+    expect(parsedBody.sk).toBeDefined();
+    expect(parsedBody.createdAt).toBeDefined();
+    expect(parsedBody.updatedAt).toBeDefined();
+  });
 
-        const callback = jest.fn();
-        const context = {} as Context;
-
-        await create(event, context, callback);
-
-        expect(callback).toHaveBeenCalledWith(expect.any(SyntaxError));
-    });
 });

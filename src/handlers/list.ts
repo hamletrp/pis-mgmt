@@ -1,36 +1,42 @@
 import {
   APIGatewayProxyEvent,
-  Callback, Context
+  Context,
+  Callback,
+  APIGatewayProxyResult,
 } from "aws-lambda";
 
-const { DynamoDB } = require('aws-sdk');
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { ScanCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-const dynamoDb = new DynamoDB.DocumentClient();
+// Initialize DynamoDB client
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
 
 export const list = async (
   event: APIGatewayProxyEvent,
   context: Context,
-  callback: Callback,
-): Promise<any> => {
-
+  callback: Callback
+): Promise<APIGatewayProxyResult> => {
   try {
-
-    const params: any = {
-      TableName: process.env.DYNAMODB_TABLE_NAME,
+    const params = {
+      TableName: process.env.DYNAMODB_TABLE_NAME!,
     };
 
-    // fetch all pis-configs from the database
-    // For production workloads you should design your tables and indexes so that your applications can use Query instead of Scan.
-    const { Items } = await dynamoDb.scan(params).promise();
+    const data = await docClient.send(new ScanCommand(params));
 
     return {
       statusCode: 200,
-      body: JSON.stringify(Items)
-    }
+      body: JSON.stringify(data.Items),
+    };
+  } catch (error) {
+    console.error("Error fetching data:", error);
 
-  } catch (error: any) {
-    console.log('ERROR', error);
-    return callback(error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: "Failed to fetch items from DynamoDB",
+        error: error instanceof Error ? error.message : error,
+      }),
+    };
   }
-
-}
+};

@@ -1,79 +1,71 @@
-import { _delete } from '../src/handlers/delete';
-import { APIGatewayProxyEvent, Context, Callback } from 'aws-lambda';
-import AWS from 'aws-sdk';
+import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
+// Mock the send function
+const mockSend = jest.fn();
 
-const itemPk = '1';
-const itemSk = 'config'; 
-
-jest.mock('aws-sdk', () => {
-    const mDocumentClient = {
-        delete: jest.fn().mockReturnThis(),
-        promise: jest.fn(),
-    };
-    return {
-        DynamoDB: {
-            DocumentClient: jest.fn(() => mDocumentClient),
-        },
-    };
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
+  return {
+    ...actual,
+    DynamoDBDocumentClient: {
+      from: jest.fn(() => ({
+        send: mockSend,
+      })),
+    },
+    DeleteCommand: jest.fn(),
+  };
 });
 
+import { _delete } from '../src/handlers/delete'; // adjust the path accordingly
+
 describe('_delete lambda handler', () => {
-    const OLD_ENV = process.env;
-    const mDocumentClient = new AWS.DynamoDB.DocumentClient() as any;
+  const pk = 'test-pk';
+  const sk = 'test-sk';
+  const OLD_ENV = process.env;
 
-    beforeEach(() => {
-        jest.resetModules();
-        process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'MockTable' };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'test-table' };
+  });
+
+  afterAll(() => {
+    process.env = OLD_ENV;
+  });
+
+  it('should return 204 on successful delete', async () => {
+    mockSend.mockResolvedValueOnce({});
+
+    const result = await _delete(
+      {
+        pathParameters: { pk, sk },
+      } as any,
+      {} as any,
+      jest.fn()
+    );
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(DeleteCommand).toHaveBeenCalledWith({
+      TableName: 'test-table',
+      Key: { pk, sk },
     });
+    expect(result.statusCode).toBe(204);
+    expect(result.body).toBe(null);
+  });
 
-    afterAll(() => {
-        process.env = OLD_ENV;
-    });
+  it('should call callback with error on failure', async () => {
+    const mockCallback = jest.fn();
+    const error = new Error('Delete failed');
+    mockSend.mockRejectedValueOnce(error);
 
-    it('should delete item from DynamoDB and return 204', async () => {
-        mDocumentClient.promise.mockResolvedValueOnce({});
+    await _delete(
+      {
+        pathParameters: { pk, sk },
+      } as any,
+      {} as any,
+      mockCallback
+    );
 
-        const event = {
-            pathParameters: {
-                pk: itemPk,
-                sk: itemSk,
-            },
-        } as unknown as APIGatewayProxyEvent;
-
-        const context = {} as Context;
-        const callback = jest.fn();
-
-        const result = await _delete(event, context, callback);
-
-        expect(mDocumentClient.delete).toHaveBeenCalledWith({
-            TableName: 'MockTable',
-            Key: {
-                pk: itemPk,
-                sk: itemSk,
-            },
-        });
-
-        expect(result.statusCode).toBe(204);
-        expect(result.body).toEqual({});
-    });
-
-    it('should call callback on delete error', async () => {
-        const error = new Error('Delete failed');
-        mDocumentClient.promise.mockRejectedValueOnce(error);
-
-        const event = {
-            pathParameters: {
-                pk: 'fail',
-                sk: 'fail',
-            },
-        } as unknown as APIGatewayProxyEvent;
-
-        const context = {} as Context;
-        const callback = jest.fn();
-
-        await _delete(event, context, callback);
-
-        expect(callback).toHaveBeenCalledWith(error);
-    });
+    expect(mockCallback).toHaveBeenCalledWith(error);
+    expect(mockSend).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,7 +1,6 @@
 export interface PISConfig {
-    pk: string
-    sk: string
-    createdAt: string
+    pk?: string
+    sk?: string
     device_type: string
     device_wait: number
     distance_range_meters: number
@@ -13,7 +12,8 @@ export interface PISConfig {
     mqtt_endpoint: string
     mqtt_topic: string
     mqtt_topic_format: string
-    updatedAt: string
+    createdAt?: string
+    updatedAt?: string
 }
 
 export interface GeolocationCoordinates {

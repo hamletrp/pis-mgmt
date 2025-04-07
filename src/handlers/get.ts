@@ -1,40 +1,56 @@
-import { DynamoDB } from 'aws-sdk'
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { GetCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import {
   APIGatewayProxyEvent,
-  Callback, Context
+  Callback,
+  Context,
+  APIGatewayProxyResult,
 } from "aws-lambda";
 
-const dynamoDb = new DynamoDB.DocumentClient()
+// Initialize DynamoDB client
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
 
-export const create = async (
+export const get = async (
   event: APIGatewayProxyEvent,
   context: Context,
-  callback: Callback,
-): Promise<any> => {
-
+  callback: Callback
+): Promise<APIGatewayProxyResult> => {
   try {
-
     const { DYNAMODB_TABLE_NAME } = process.env;
     const { pk, sk } = event.pathParameters || {};
 
-    const params: any = {
-      TableName: DYNAMODB_TABLE_NAME,
+    const params = {
+      TableName: DYNAMODB_TABLE_NAME!,
       Key: {
-        pk: pk,
-        sk: sk,
+        pk: pk!,
+        sk: sk!,
       },
     };
 
     // fetch pis-config from the database
-    const item = await dynamoDb.get(params).promise();
+    const data = await docClient.send(new GetCommand(params));
+
+    if (!data.Item) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: "Item not found" }),
+      };
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify(item)
-    }
+      body: JSON.stringify(data.Item),
+    };
+  } catch (error) {
+    console.error("Error fetching data:", error);
 
-  } catch (error: any) {
-    console.log('ERROR', error);
-    return callback(error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: "Failed to fetch item from DynamoDB",
+        error: error instanceof Error ? error.message : error,
+      }),
+    };
   }
 };

@@ -1,19 +1,23 @@
-import * as AWS from 'aws-sdk'
-
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { UpdateCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import {
-  APIGatewayProxyEvent, APIGatewayProxyResult,
-  Callback, Context
-} from 'aws-lambda';
+  APIGatewayProxyEvent,
+  Callback,
+  Context,
+  APIGatewayProxyResult,
+} from "aws-lambda";
+
+// Initialize DynamoDB client
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
 
 export const update = async (
   event: APIGatewayProxyEvent,
   context: Context,
-  callback: Callback,
-): Promise<any> => {
-
+  callback: Callback
+): Promise<APIGatewayProxyResult> => {
   try {
-    const data = <any>event.body;
+    const data = JSON.parse(event.body!); // parse request body
 
     // Build update expression dynamically
     let updateExpression = "SET ";
@@ -33,10 +37,10 @@ export const update = async (
     const { pk, sk } = event.pathParameters || {};
 
     const params: any = {
-      TableName: process.env.DYNAMODB_TABLE_NAME,
+      TableName: process.env.DYNAMODB_TABLE_NAME!,
       Key: {
-        pk: pk,
-        sk: sk,
+        pk: pk!,
+        sk: sk!,
       },
       UpdateExpression: updateExpression,
       ExpressionAttributeNames: expressionAttributeNames,
@@ -44,21 +48,23 @@ export const update = async (
       ReturnValues: "UPDATED_NEW",
     };
 
-    // update the pis-config in the database
-    const resultAttributes = await dynamoDb.update(params)
-      .promise()
-      .then((val) => val.Attributes);
+    // Perform update operation in DynamoDB
+    const result = await docClient.send(new UpdateCommand(params));
 
-    console.log('INFO: successfully stored pis-config data');
+    console.log("INFO: successfully updated pis-config data");
 
     return {
       statusCode: 200,
-      body: JSON.stringify(resultAttributes)
-    }
-
+      body: JSON.stringify(result.Attributes),
+    };
   } catch (error: any) {
-    console.log('ERROR', error);
-    return callback(error);
+    console.error("ERROR:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: "Failed to update item in DynamoDB",
+        error: error instanceof Error ? error.message : error,
+      }),
+    };
   }
-
-}
+};

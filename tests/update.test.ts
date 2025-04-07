@@ -1,90 +1,94 @@
-import { update } from '../src/handlers/update';
-import { APIGatewayProxyEvent, Context, Callback } from 'aws-lambda';
-import AWS from 'aws-sdk';
+import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
-const itemPk = '1';
-const itemSk = 'config'; 
+const mockSend = jest.fn();
 
-jest.mock('aws-sdk', () => {
-  const mDocumentClient = {
-    update: jest.fn().mockReturnThis(),
-    promise: jest.fn(),
-  };
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
   return {
-    DynamoDB: {
-      DocumentClient: jest.fn(() => mDocumentClient),
+    ...actual,
+    DynamoDBDocumentClient: {
+      from: jest.fn(() => ({
+        send: mockSend,
+      })),
     },
+    UpdateCommand: jest.fn(),
   };
 });
 
+import { update } from '../src/handlers/update'; // adjust path if needed
+
 describe('update lambda handler', () => {
+  const pk = 'test-pk';
+  const sk = 'config';
   const OLD_ENV = process.env;
-  const mDocumentClient = new AWS.DynamoDB.DocumentClient() as any;
 
   beforeEach(() => {
-    jest.resetModules();
-    process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'MockTable' };
+    jest.clearAllMocks();
+    process.env = { ...OLD_ENV, DYNAMODB_TABLE_NAME: 'test-table' };
   });
 
   afterAll(() => {
     process.env = OLD_ENV;
   });
 
-  it('should update an item in DynamoDB and return 200 with updated attributes', async () => {
-    const updatedAttributes = {
-        device_type: "raspberryPi",
-        device_wait: 5000,
-    };
+  it('should return 200 with updated attributes on success', async () => {
+    const requestBody = { door_name: 'New Door', distance: 100 };
+    const updatedAttributes = { door_name: 'New Door', distance: 100 };
 
-    mDocumentClient.promise.mockResolvedValueOnce({
-      Attributes: updatedAttributes,
-    });
+    mockSend.mockResolvedValueOnce({ Attributes: updatedAttributes });
 
-    const event = {
-      pathParameters: {
-        pk: itemPk,
-        sk: itemSk,
-      },
-      body: JSON.stringify(updatedAttributes),
-    } as unknown as APIGatewayProxyEvent;
-
-    const context = {} as Context;
-    const callback = jest.fn();
-
-    const result = await update(event, context, callback);
-
-    expect(mDocumentClient.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        TableName: 'MockTable',
-        Key: { pk: itemPk, sk: itemSk },
-        UpdateExpression: expect.stringContaining('SET'),
-        ReturnValues: 'UPDATED_NEW',
-      })
+    const result = await update(
+      {
+        body: JSON.stringify(requestBody),
+        pathParameters: { pk, sk },
+      } as any,
+      {} as any,
+      jest.fn()
     );
 
     expect(result.statusCode).toBe(200);
     expect(JSON.parse(result.body)).toEqual(updatedAttributes);
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(UpdateCommand).toHaveBeenCalledWith(expect.objectContaining({
+      TableName: 'test-table',
+      Key: { pk, sk },
+      UpdateExpression: expect.stringMatching(/^SET/),
+      ExpressionAttributeNames: expect.any(Object),
+      ExpressionAttributeValues: expect.any(Object),
+    }));
   });
 
-  it('should call callback on error', async () => {
-    const error = new Error('Update failed');
-    mDocumentClient.promise.mockRejectedValueOnce(error);
+  it('should return 500 on invalid JSON', async () => {
+    const result = await update(
+      {
+        body: 'invalid',
+        pathParameters: { pk, sk },
+      } as any,
+      {} as any,
+      jest.fn()
+    );
 
-    const event = {
-      pathParameters: {
-        pk: 'failme',
-        sk: 'failme',
-      },
-      body: JSON.stringify({
-        device_type: 'device_typeeeeee',
-      }),
-    } as unknown as APIGatewayProxyEvent;
+    expect(result.statusCode).toBe(500);
+    const body = JSON.parse(result.body);
+    expect(body.message).toBe('Failed to update item in DynamoDB');
+    expect(body.error).toMatch(/Unexpected token/);
+  });
 
-    const context = {} as Context;
-    const callback = jest.fn();
+  it('should return 500 on DynamoDB failure', async () => {
+    mockSend.mockRejectedValueOnce(new Error('DynamoDB failed'));
 
-    await update(event, context, callback);
+    const result = await update(
+      {
+        body: JSON.stringify({ test: 'fail' }),
+        pathParameters: { pk, sk },
+      } as any,
+      {} as any,
+      jest.fn()
+    );
 
-    expect(callback).toHaveBeenCalledWith(error);
+    expect(result.statusCode).toBe(500);
+    const body = JSON.parse(result.body);
+    expect(body.message).toBe('Failed to update item in DynamoDB');
+    expect(body.error).toBe('DynamoDB failed');
   });
 });
